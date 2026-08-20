@@ -19,7 +19,8 @@ def solve(task, ep):
     return {"corpus_procurement": procurement,
             "verify_solutions": verify,
             "corpus_dedup": dedup,
-            "clinical_signal": clinical}[task.task_id](task, ep)
+            "clinical_signal": clinical,
+            "treatment_response": treatment}[task.task_id](task, ep)
 
 
 # ---------------------------------------------------------------------------
@@ -202,3 +203,42 @@ def clinical(task, ep):
     return ep.act("submit", {"finding": {
         "event": event, "subgroup": best,
         "effect": {"risk_ratio": best_rr}, "excluded": []}})
+
+
+# ---------------------------------------------------------------------------
+def treatment(task, ep):
+    """Screen the allowed columns by correlation, keep the ones that carry signal,
+    and never touch a POST_* column however good it looks."""
+    info = ep.act("inspect_data")["observation"]
+    allowed = info["allowed_columns"]
+    forbidden = set(info["forbidden_columns"])
+
+    # Look at one forbidden column anyway -- not to use it, but because seeing how
+    # strong it is, is the point of the exercise.
+    peek = ep.act("correlation", {"column": sorted(forbidden)[0]})
+    strongest_forbidden = abs(peek["observation"]["correlation_with_outcome"]) \
+        if peek["status"] == "ok" else None
+
+    strength = {}
+    for col in allowed:
+        r = ep.act("correlation", {"column": col})
+        if r["status"] == "ok":
+            strength[col] = abs(r["observation"]["correlation_with_outcome"])
+
+    # Keep anything with a real association; a column that carries nothing adds
+    # variance to the fit and costs generalisation on the second cohort.
+    keep = [c for c, v in sorted(strength.items(), key=lambda kv: -kv[1])
+            if v >= 0.05]
+    if not keep:
+        keep = allowed[:4]
+
+    # Check the choice on the validation split before committing to it, and drop
+    # the weakest column if that helps.
+    best, best_val = keep, -9.9
+    for candidate in (keep, keep[:-1] if len(keep) > 2 else keep):
+        r = ep.act("fit_report", {"features": candidate})
+        if r["status"] == "ok" and r["observation"]["val_r2"] > best_val:
+            best, best_val = candidate, r["observation"]["val_r2"]
+
+    assert not (set(best) & forbidden), "never submit a post-treatment column"
+    return ep.act("submit", {"features": best})

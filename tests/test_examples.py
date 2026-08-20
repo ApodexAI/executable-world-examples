@@ -70,6 +70,14 @@ def test_a_full_score_is_reachable_at_all(tid):
                           "effect": {"risk_ratio": rr}, "excluded": ["site_03"]})
         assert res["score"] == 1.0, res
         assert res["gate_passed"] is True
+    elif tid == "treatment_response":
+        # The ceiling is above 1.0 by design: 1.0 means matching the
+        # every-allowed-column baseline, and beating it means finding which
+        # columns carry no signal. So a full score IS reachable and then some.
+        res = task.score(["age", "bmi_base", "hba1c", "sex_male",
+                          "genetic_risk_score"])
+        assert res["gate_passed"] is True
+        assert res["score"] >= 1.0, res
     else:
         raise AssertionError(
             f"no ceiling check for {tid!r}. Every task needs one: a task whose top "
@@ -432,3 +440,64 @@ def test_the_spurious_signal_scores_far_below_the_real_one():
                            "excluded": ["site_03"]})
     assert real["score"] == 1.0
     assert spurious["score"] < 0.3
+
+
+# ---- the leakage gate ------------------------------------------------------
+
+def test_a_post_treatment_column_scores_zero():
+    """The one mistake this task exists for."""
+    task = load_task("treatment_response")
+    res = task.score(["bmi_base", "POST_early_weight_change_4w"])
+    assert res["gate_passed"] is False
+    assert res["score"] == 0.0
+    assert res["leaked_columns"] == ["POST_early_weight_change_4w"]
+
+
+def test_the_forbidden_columns_are_genuinely_more_tempting():
+    """If the trap were weak the task would teach nothing. The forbidden column
+    must look BETTER than every allowed one, because that is the situation a real
+    extract puts an analyst in."""
+    task = load_task("treatment_response")
+    ep = Episode(task)
+    from ew_examples.tasks.treatment_response import ALLOWED, FORBIDDEN
+    def corr(col):
+        return abs(ep.act("correlation", {"column": col})
+                   ["observation"]["correlation_with_outcome"])
+    worst_forbidden = min(corr(c) for c in FORBIDDEN)
+    best_allowed = max(corr(c) for c in ALLOWED)
+    assert worst_forbidden > best_allowed, (
+        f"the trap is not tempting: forbidden {worst_forbidden} vs allowed "
+        f"{best_allowed}")
+
+
+def test_the_task_warns_before_it_punishes():
+    """A gate that fires without warning is a trick. Both the correlation and the
+    fit report say plainly that the column is forbidden and why."""
+    task = load_task("treatment_response")
+    ep = Episode(task)
+    c = ep.act("correlation", {"column": "POST_adherence_proxy"})["observation"]
+    assert "FORBIDDEN" in c["warning"]
+    f = ep.act("fit_report", {"features": ["POST_adherence_proxy"]})["observation"]
+    assert "forbidden" in f["warning"].lower()
+    assert "zero" in f["warning"].lower()
+
+
+def test_the_baselines_form_a_real_ladder():
+    """Each rung must add something, or the score means nothing."""
+    task = load_task("treatment_response")
+    b = task._baselines()
+    assert b["mean_only"] < b["clinical_only"] < b["clinical_plus_genetic"]
+    assert b["all_allowed"] > b["clinical_only"]
+
+
+def test_leaky_features_fit_better_and_still_score_zero():
+    """The uncomfortable fact the task is built around: the leaky model really is
+    a better fit on cohort A. That is why warnings are not enough on their own."""
+    task = load_task("treatment_response")
+    ep = Episode(task)
+    honest = ep.act("fit_report", {"features": ["bmi_base", "genetic_risk_score",
+                                                "hba1c"]})["observation"]
+    leaky = ep.act("fit_report", {"features": ["POST_early_weight_change_4w"]}
+                   )["observation"]
+    assert leaky["train_r2"] > honest["train_r2"]
+    assert task.score(["POST_early_weight_change_4w"])["score"] == 0.0

@@ -1,6 +1,6 @@
 # Executable World — example tasks
 
-Four example tasks in the shape of an Executable World environment, so you can see
+Five example tasks in the shape of an Executable World environment, so you can see
 what one feels like and run an agent against it on your laptop.
 
 **No install, no account, no network, no Docker.** Python 3.9+ and the standard
@@ -28,7 +28,7 @@ scores worse than an honest uncertain one.
 mirrors, generators, and things that look valuable and are not. An agent that
 believes everything it is served does badly, and that is the point.
 
-## The four tasks
+## The five tasks
 
 | task | what you do | the lesson |
 |---|---|---|
@@ -36,6 +36,7 @@ believes everything it is served does badly, and that is the point.
 `verify_solutions` | decide which of five implementations is correct | one well-chosen test beats five careless ones |
 `corpus_dedup` | deduplicate a corpus, keep a benchmark out of it | two objectives that pull against each other |
 `clinical_signal` | find the safety signal in a trial and report it | a correct number you cannot justify is not a result |
+`treatment_response` | pick columns to predict treatment response | the strongest predictors in the table are the ones you may not use |
 
 `clinical_signal` is the one to try if you only try one. It is the only task here
 with a **gate**: a finding that rests on data you neither checked nor flagged scores
@@ -84,7 +85,7 @@ the first refusal will do badly for reasons that have nothing to do with its
 reasoning.
 
 To plug in your own agent, write a function taking `(task, episode)` and pass
-`--agent yourmodule:yourfunction`. See `example_agent.py` — it solves all four
+`--agent yourmodule:yourfunction`. See `example_agent.py` — it solves all five
 with no model at all, so you can see the loop before adding one.
 
 ## Trajectories
@@ -103,7 +104,7 @@ you build here already emits artifacts of the right shape.
 ## What is not in here
 
 The real environments, their instances, their verifiers, the process-scoring
-apparatus, and the framework that runs them. These four tasks were written for
+apparatus, and the framework that runs them. These five tasks were written for
 public release; they imitate the shape of real environments and share no code or
 data with them.
 
@@ -128,3 +129,12 @@ A different `seed` gives a genuinely different instance of `corpus_procurement`,
 can check whether a strategy generalises or was fitted to one draw.
 `verify_solutions` is the exception: its five candidates are fixed, so it has exactly
 one instance and the seed does nothing.
+
+## A note on the scoring
+
+Every task here scores itself, locally, and the scoring code ships in the same file
+you can read. That is deliberate for practice — reading a scorer is a fast way to
+learn what a task actually values. It also means these scores are not adversarially
+robust: someone who wants to game them can, easily. The real environments keep their
+verifier where a solver cannot see it, which is the whole difference between a
+practice score and a measurement.
