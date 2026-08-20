@@ -299,3 +299,49 @@ def test_the_pack_imports_nothing_outside_the_standard_library():
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+# ---- the model loop (offline) ----------------------------------------------
+
+def test_the_model_loop_plays_a_task_with_a_stubbed_model(monkeypatch):
+    """Proves the loop, not the model: prompt built, JSON parsed out of prose and
+    a code fence, action dispatched, observation fed back, submission reached."""
+    import llm_agent
+    monkeypatch.setenv("EW_MODEL_HOOK", "tests.stub_model:reply")
+    task = load_task("verify_solutions")
+    ep = Episode(task)
+    llm_agent.solve(task, ep, verbose=False)
+    assert ep.done and ep.result["score"] == 1.0
+    assert len(ep.trajectory) == 5
+
+
+def test_the_action_parser_takes_the_last_object_not_the_first(monkeypatch):
+    """A model that names an option and then rejects it must not have the rejected
+    one executed. That failure looks like a bad decision by the model rather than
+    a bug in the harness, which is why it is pinned here."""
+    import llm_agent
+    monkeypatch.setenv("EW_MODEL_HOOK", "tests.stub_model:chatty_reply")
+    task = load_task("verify_solutions")
+    ep = Episode(task)
+    llm_agent.solve(task, ep, verbose=False)
+    assert [r["action"] for r in ep.trajectory][0] == "list_candidates"
+    assert "read_candidate" not in [r["action"] for r in ep.trajectory]
+    assert ep.result["score"] == 1.0
+
+
+def test_call_model_without_an_implementation_says_what_to_do():
+    import llm_agent
+    with pytest.raises(NotImplementedError) as e:
+        llm_agent.call_model("sys", [])
+    assert "call_model" in str(e.value)
+
+
+def test_the_harness_adapter_exposes_every_action():
+    """A framework that owns its own loop gets tool schemas plus a dispatcher."""
+    import llm_agent
+    task = load_task("corpus_dedup")
+    ep = Episode(task)
+    schemas, call = llm_agent.tools_for(ep)
+    assert {s["function"]["name"] for s in schemas} == set(task.actions())
+    assert call("calibration", {})["status"] == "ok"
+    assert call("embed_cosine", '{"pairs": [["doc_000", "doc_100"]]}')["status"] == "ok"
