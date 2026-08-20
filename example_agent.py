@@ -18,7 +18,8 @@ def solve(task, ep):
     """Dispatch on the task id. `run_task.py --agent` calls this."""
     return {"corpus_procurement": procurement,
             "verify_solutions": verify,
-            "corpus_dedup": dedup}[task.task_id](task, ep)
+            "corpus_dedup": dedup,
+            "clinical_signal": clinical}[task.task_id](task, ep)
 
 
 # ---------------------------------------------------------------------------
@@ -162,3 +163,42 @@ def dedup(task, ep):
         if not obs.get("submits_remaining"):
             break
     return ep.act("finish")
+
+
+# ---------------------------------------------------------------------------
+def clinical(task, ep):
+    """Read the field metadata BEFORE trusting the field, declare what cannot be
+    resolved, then localise the signal to a subgroup rather than reporting it at
+    the study level where it is diluted."""
+    ep.act("inspect_study")
+
+    # One query, and it changes how everything after it must be read. Skipping it
+    # is what fails the gate -- not being wrong, but being unable to say why the
+    # number should be believed.
+    meta = ep.act("field_metadata", {"field": "alt_value"})
+    if meta["status"] == "ok" and not meta["observation"].get(
+            "consistent_across_sites", True):
+        ep.act("declare_limitation", {"issue":
+               "alt_value units are not harmonised across sites, so raw values are "
+               "not comparable between them; the signal below is based on event "
+               "counts, which are unit-independent"})
+
+    # Screen every event at the study level, then localise the strongest.
+    ratios = {}
+    for ev in ("hepatic_enzyme_rise", "headache", "nausea", "rash", "insomnia"):
+        r = ep.act("event_counts", {"event": ev})
+        if r["status"] == "ok":
+            ratios[ev] = r["observation"]["risk_ratio"]
+    if not ratios:
+        return ep.act("submit", {"finding": {"event": "hepatic_enzyme_rise"}})
+    event = max(ratios, key=lambda k: ratios[k])
+
+    best, best_rr = None, 0.0
+    for sub in ("dose_low", "dose_high", "age_under_65", "age_65_plus"):
+        r = ep.act("event_counts", {"event": event, "subgroup": sub})
+        if r["status"] == "ok" and r["observation"]["risk_ratio"] > best_rr:
+            best, best_rr = sub, r["observation"]["risk_ratio"]
+
+    return ep.act("submit", {"finding": {
+        "event": event, "subgroup": best,
+        "effect": {"risk_ratio": best_rr}, "excluded": []}})

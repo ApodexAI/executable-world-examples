@@ -1,6 +1,6 @@
 # Executable World — example tasks
 
-Three example tasks in the shape of an Executable World environment, so you can see
+Four example tasks in the shape of an Executable World environment, so you can see
 what one feels like and run an agent against it on your laptop.
 
 **No install, no account, no network, no Docker.** Python 3.9+ and the standard
@@ -28,13 +28,21 @@ scores worse than an honest uncertain one.
 mirrors, generators, and things that look valuable and are not. An agent that
 believes everything it is served does badly, and that is the point.
 
-## The three tasks
+## The four tasks
 
 | task | what you do | the lesson |
 |---|---|---|
 `corpus_procurement` | probe hidden data sources, submit a purchasing plan | a source can be genuine and still not worth having |
 `verify_solutions` | decide which of five implementations is correct | one well-chosen test beats five careless ones |
 `corpus_dedup` | deduplicate a corpus, keep a benchmark out of it | two objectives that pull against each other |
+`clinical_signal` | find the safety signal in a trial and report it | a correct number you cannot justify is not a result |
+
+`clinical_signal` is the one to try if you only try one. It is the only task here
+with a **gate**: a finding that rests on data you neither checked nor flagged scores
+zero even when the finding is right. Declaring a limitation is free and unlimited,
+and it is the only thing that can save the marks. Most agents fail it the first time
+by being fluent and confident over a field whose own metadata says it was never
+harmonised — which is exactly how capable analysts produce unusable work.
 
 Each is one *shape* of problem. The real environments have many instances of each
 shape, and more shapes than these.
@@ -76,7 +84,7 @@ the first refusal will do badly for reasons that have nothing to do with its
 reasoning.
 
 To plug in your own agent, write a function taking `(task, episode)` and pass
-`--agent yourmodule:yourfunction`. See `example_agent.py` — it solves all three
+`--agent yourmodule:yourfunction`. See `example_agent.py` — it solves all four
 with no model at all, so you can see the loop before adding one.
 
 ## Trajectories
@@ -95,7 +103,7 @@ you build here already emits artifacts of the right shape.
 ## What is not in here
 
 The real environments, their instances, their verifiers, the process-scoring
-apparatus, and the framework that runs them. These three tasks were written for
+apparatus, and the framework that runs them. These four tasks were written for
 public release; they imitate the shape of real environments and share no code or
 data with them.
 

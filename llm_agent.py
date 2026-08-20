@@ -50,7 +50,7 @@ def call_model(system: str, transcript: list[dict]) -> str:
         import anthropic
         client = anthropic.Anthropic()
         r = client.messages.create(
-            model="claude-opus-5", max_tokens=2048,
+            model="claude-opus-4-5", max_tokens=2048,
             system=system, messages=transcript)
         return r.content[0].text
 

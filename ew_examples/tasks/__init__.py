@@ -1,4 +1,5 @@
 """The example tasks. Each is one shape of problem, not one instance of it."""
+from .clinical_signal import ClinicalSignal
 from .corpus_dedup import CorpusDedup
 from .corpus_procurement import CorpusProcurement
 from .verify_solutions import VerifySolutions
@@ -7,6 +8,7 @@ TASKS = {
     "corpus_procurement": CorpusProcurement,
     "verify_solutions": VerifySolutions,
     "corpus_dedup": CorpusDedup,
+    "clinical_signal": ClinicalSignal,
 }
 
 
@@ -21,4 +23,4 @@ def load_task(task_id: str, seed: int = 0):
 
 
 __all__ = ["TASKS", "load_task", "CorpusProcurement", "VerifySolutions",
-           "CorpusDedup"]
+           "CorpusDedup", "ClinicalSignal"]

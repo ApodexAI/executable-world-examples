@@ -55,7 +55,7 @@ def test_a_full_score_is_reachable_at_all(tid):
                           "suspected_decoys": ["src_01", "src_03"],
                           "estimates": {"M_high": {"point": 90, "lo": 40, "hi": 200}}})
         assert res["score"] == 1.0, res
-    else:
+    elif tid == "corpus_dedup":
         # Measured, not guessed: (0.82, 0.80) is the point where both objectives
         # are satisfied at once. If a future edit makes the ceiling unreachable
         # this fails, which is the whole reason the number is pinned here.
@@ -63,6 +63,18 @@ def test_a_full_score_is_reachable_at_all(tid):
         assert res["score"] == 1.0, res
         assert res["dedup_f1"] == 1.0 and res["leak_recall"] == 1.0
         assert res["over_removal_rate"] == 0.0
+    elif tid == "clinical_signal":
+        rr = task._rr([p for p in task._patients if p["dose"] == "dose_high"],
+                      "hepatic_enzyme_rise")[0]
+        res = task.score({"event": "hepatic_enzyme_rise", "subgroup": "dose_high",
+                          "effect": {"risk_ratio": rr}, "excluded": ["site_03"]})
+        assert res["score"] == 1.0, res
+        assert res["gate_passed"] is True
+    else:
+        raise AssertionError(
+            f"no ceiling check for {tid!r}. Every task needs one: a task whose top "
+            f"score is unreachable looks hard when it is broken, and this branch "
+            f"exists so adding a task without checking cannot pass silently.")
 
 
 @pytest.mark.parametrize("tid", ALL)
@@ -345,3 +357,78 @@ def test_the_harness_adapter_exposes_every_action():
     assert {s["function"]["name"] for s in schemas} == set(task.actions())
     assert call("calibration", {})["status"] == "ok"
     assert call("embed_cosine", '{"pairs": [["doc_000", "doc_100"]]}')["status"] == "ok"
+
+
+# ---- the clinical gate -----------------------------------------------------
+
+def test_a_correct_finding_fails_the_gate_if_nothing_was_checked():
+    """The property the whole task exists for. Being right is not sufficient: a
+    number nobody can audit is not a result. If this ever passes, the task has
+    stopped teaching the only thing it was built to teach."""
+    task = load_task("clinical_signal")
+    ep = Episode(task)
+    ep.act("submit", {"finding": {"event": "hepatic_enzyme_rise",
+                                  "subgroup": "dose_high",
+                                  "effect": {"risk_ratio": 3.4}}})
+    assert ep.result["right_event"] is True          # the answer was correct
+    assert ep.result["right_subgroup"] is True
+    assert ep.result["gate_passed"] is False         # and it still scores nothing
+    assert ep.result["score"] == 0.0
+
+
+def test_one_free_declaration_rescues_the_same_finding():
+    """The identical submission that scored zero above, plus one free action."""
+    task = load_task("clinical_signal")
+    ep = Episode(task)
+    ep.act("declare_limitation",
+           {"issue": "alt_value units are not harmonised across sites"})
+    ep.act("submit", {"finding": {"event": "hepatic_enzyme_rise",
+                                  "subgroup": "dose_high",
+                                  "effect": {"risk_ratio": 3.4}}})
+    assert ep.result["gate_passed"] is True
+    assert ep.result["score"] > 0.8
+
+
+def test_declaring_a_limitation_is_free_and_unlimited():
+    """If it cost anything, the task would be teaching people to stay quiet."""
+    task = load_task("clinical_signal")
+    ep = Episode(task)
+    before = dict(ep.budget.counters)
+    for i in range(30):
+        r = ep.act("declare_limitation", {"issue": f"concern {i}"})
+        assert r["status"] == "ok"
+    assert ep.budget.counters == before
+
+
+def test_excluding_the_bad_site_also_passes_the_gate():
+    """Two honest routes: report around the problem, or declare it."""
+    task = load_task("clinical_signal")
+    ep = Episode(task)
+    ep.act("submit", {"finding": {"event": "hepatic_enzyme_rise",
+                                  "subgroup": "dose_high",
+                                  "effect": {"risk_ratio": 3.4},
+                                  "excluded": ["site_03"]}})
+    assert ep.result["gate_passed"] is True
+
+
+def test_the_field_metadata_discloses_the_problem_rather_than_hiding_it():
+    """The task must be fair: the ambiguity is discoverable in one query. A trap
+    that cannot be found by looking is not a lesson, it is a coin flip."""
+    task = load_task("clinical_signal")
+    ep = Episode(task)
+    obs = ep.act("field_metadata", {"field": "alt_value"})["observation"]
+    assert obs["consistent_across_sites"] is False
+    assert "NOT HARMONISED" in obs["units"]
+
+
+def test_the_spurious_signal_scores_far_below_the_real_one():
+    task = load_task("clinical_signal")
+    real = task.score({"event": "hepatic_enzyme_rise", "subgroup": "dose_high",
+                       "effect": {"risk_ratio": task._rr(
+                           [p for p in task._patients
+                            if p["dose"] == "dose_high"], "hepatic_enzyme_rise")[0]},
+                       "excluded": ["site_03"]})
+    spurious = task.score({"event": "rash", "subgroup": "age_65_plus",
+                           "excluded": ["site_03"]})
+    assert real["score"] == 1.0
+    assert spurious["score"] < 0.3
