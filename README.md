@@ -122,3 +122,9 @@ touch.
 Use these as a fixture in your own test suite if useful. They are deterministic, so
 they make stable tests: `load_task("corpus_dedup", seed=7)` is the same task on
 every machine, forever.
+
+A different `seed` gives a genuinely different instance of `corpus_procurement`,
+`corpus_dedup` and `clinical_signal` — new sources, new corpus, new trial — so you
+can check whether a strategy generalises or was fitted to one draw.
+`verify_solutions` is the exception: its five candidates are fixed, so it has exactly
+one instance and the seed does nothing.
