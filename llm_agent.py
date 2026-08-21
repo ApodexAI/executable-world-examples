@@ -42,7 +42,7 @@ def call_model(system: str, transcript: list[dict]) -> str:
         from openai import OpenAI
         client = OpenAI()
         r = client.chat.completions.create(
-            model="gpt-5.5",
+            model="your-model",
             messages=[{"role": "system", "content": system}] + transcript)
         return r.choices[0].message.content
 
@@ -50,7 +50,7 @@ def call_model(system: str, transcript: list[dict]) -> str:
         import anthropic
         client = anthropic.Anthropic()
         r = client.messages.create(
-            model="claude-opus-4-5", max_tokens=2048,
+            model="your-model", max_tokens=2048,
             system=system, messages=transcript)
         return r.content[0].text
 
