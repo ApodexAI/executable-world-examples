@@ -8,7 +8,7 @@ afternoon.
 no network, no Docker.
 
 ```bash
-git clone git@github.com:ApodexAI/executable-world-examples.git
+git clone https://github.com/ApodexAI/executable-world-examples.git
 cd executable-world-examples
 
 python3 run_task.py --list
