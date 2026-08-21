@@ -17,6 +17,18 @@ python3 run_task.py --task clinical_signal --interactive
 python3 run_task.py --task clinical_signal --agent example_agent:solve
 ```
 
+## Submit your solver
+
+Ready to be evaluated on the real environments — with your own harness, your own
+model, or both?
+
+- **https://traces.apodex.com/submit-your-solver**
+- **sheng@apodex.com**
+- **brian@apodex.com**
+
+This repository is practice. Submitting is a separate, formal arrangement, and the
+two addresses above are the fastest route to starting one.
+
 ---
 
 ## Read this before anything else
@@ -203,6 +215,21 @@ schemas, call = tools_for(ep)     # schemas in the shape OpenAI/Anthropic accept
 It holds no state — the episode does — so your loop can retry, branch, or use
 several models and the accounting stays correct.
 
+### 6. Submit your solver
+
+When your harness clears these five, that is the point at which the real
+environments become worth your time. Bring a **harness**, a **model endpoint**, or
+both — all three are supported, and you do not need a model of your own: we can
+provide one through a metered door your harness calls.
+
+- **https://traces.apodex.com/submit-your-solver**
+- **sheng@apodex.com**
+- **brian@apodex.com**
+
+Worth saying explicitly: a good score in this repository is not a submission and is
+not seen by anyone. Nothing here reports back, so if you want to be evaluated, the
+links above are the only way it happens.
+
 ---
 
 ## Trajectories
@@ -269,8 +296,11 @@ this, and it is usually the more informative of the two numbers.
 assigned per submitter with no repeats. Practice here is unlimited and repeatable
 precisely because none of it counts.
 
-Running against the real environments is a separate, formal arrangement. Get in
-touch.
+Running against the real environments is a separate, formal arrangement:
+
+- **https://traces.apodex.com/submit-your-solver**
+- **sheng@apodex.com**
+- **brian@apodex.com**
 
 ---
 
